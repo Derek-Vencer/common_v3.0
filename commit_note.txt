@@ -1,0 +1,22 @@
+origin/cust/ep_comm_sdk_v3.0:
+                           mcu-commit: 0cfdc6f0fbd6917d8b922fddaa21c55a0db80a97
+                    multimedia-commit: db47022c8893cc7a41487b00c64da4e80ff5e034
+        multimedia/libs/mm-lib-commit: 3bf19830489b725a34844bd841e787d84a6fbc27
+
+(1306/1306p/1502x/1502p/1503)
+origin/cust/ep_comm_sdk_v3.0:
+                bthost_generic-commit: 530d92310e7fec57925fb505ee8a78a3c3f4045d
+ multimedia/algorithms_generic-commit: 27a659f340687f2ead81c7d2bbcee6cc0e3c100e
+
+(1307p)
+             bthost_best1307p-commit: 606d73b4e1cee1aa92ec9838a318ba12707eca40
+  multimedia/algorithms_best1307p-commit: 14a1dda1a4be17103c57a3eea8dfbd6be860e0b6
+
+(1307ph)
+            bthost_best1307ph-commit: e392adf2ab6f60318d7f18ff7ddad9fe2e4b46c8
+ multimedia/algorithms_best1307ph-commit: 38ab8268c9ded4c5cbbc04fc4b2263191f847f79
+
+(other repos)
+                         nn-commit: 56c5d1172c9d9696b563b54fbb768cc8301d9dac
+                nn/cmsis-nn-commit: c68cd9abc65acfa18eb5e07d40c7bd3e46cb90b0
+                shared_apps-commit: e512050a1684132915f96576a8ef03bde36fc36b

@@ -1,0 +1,238 @@
+/***************************************************************************
+ *
+ * Copyright 2015-2023 BES.
+ * All rights reserved. All unpublished rights reserved.
+ *
+ * No part of this work may be used or reproduced in any form or by any
+ * means, or stored in a database or retrieval system, without prior written
+ * permission of BES.
+ *
+ * Use of this work is governed by a license granted by BES.
+ * This work contains confidential and proprietary information of
+ * BES. which is protected by copyright, trade secret,
+ * trademark and other intellectual property rights.
+ *
+ ****************************************************************************/
+#ifndef __BT_CALLBACK_FUNC_H__
+#define __BT_CALLBACK_FUNC_H__
+#include "bt_common_define.h"
+#include "me_api.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+struct bt_hf_custom_id_t {
+    uint16_t hf_custom_vendor_id;
+    uint16_t hf_custom_product_id;
+    uint16_t hf_custom_version_id;
+    uint16_t hf_custom_feature_id;
+};
+
+struct BT_CALLBACK_FUNC_T {
+    int (*int_lock)();
+    void (*int_unlock)();
+    uint8_t (*get_device_id_byaddr)(const bt_bdaddr_t *remote);
+    bool (*is_bt_thread)(void);
+    int (*call_func_in_bt_thread)(uint32_t a, uint32_t b, uint32_t c, uint32_t d, uint32_t func);
+    int (*defer_call_in_bt_thread)(uintptr_t func, uint32_t defer_param);
+    bool (*is_support_multipoint_ibrt)(void);
+    ibrt_rx_data_filter_func ibrt_rx_data_filter_cb;
+    l2cap_sdp_disconnect_callback l2cap_sdp_disconnect_cb;
+    bt_get_ibrt_role_callback get_ibrt_role_cb;
+    bt_get_tss_state_callback get_tss_state_cb;
+    void (*ble_start_disconnect)(uint8_t conIdx);
+    void (*btdrv_reconn)(bool en);
+    void (*load_sleep_config)(uint8_t* config);
+    bool (*io_capbility_request_callback)(void *bdaddr, uint8_t local_initiate, bool is_bt_acl);
+    void (*read_le_host_chnl_map_cmpl)(uint8 *data);
+    bool (*get_io_capability_for_special_devices)(uint16_t connhdl, bt_iocap_requirement_t *p_iocap);
+    bool (*get_io_capability_for_special_services)(uint16_t connhdl, bt_iocap_requirement_t *remote_initiate);
+    void (*notify_profile_evt_callback)(uint8_t device_id, uint64_t profile,void *param1,void *param2,void* param3);
+    bt_cmgr_sniff_timeout_ext_handler sniff_timeout_handler_ext_fn;
+    bt_remote_is_mobile_callback_t conn_remote_is_mobile;
+    bt_gather_global_srv_uuids gather_uuid_func_lst[BT_EIR_GLOBAL_SRV_UUIDS_GATHER_CALLBACK_COUNT];
+    bt_eir_fill_manufacture_data eir_fill_manufactrue_data_func;
+    l2cap_process_bredr_smp_req_callback_func bredr_smp_req_callback;
+    btif_event_callback_t tws_acl_disconnect_callback;
+    bt_get_ibrt_handle_callback_t get_ibrt_hci_handle_callback;
+    bt_a2dp_stream_command_pack_callback_t avdtp_stream_command_accept_pack;
+    bt_sco_codec_info_sync_callback_t hf_sco_codec_info_sync;
+    bt_avrcp_register_notify_callback_t avrcp_register_notify_send_check_callback;
+    bt_avrcp_register_notify_response_callback_t avrcp_register_notify_resp_check_callback;
+    btif_hci_sync_airmode_check_ind_func hci_sync_airmode_check_ind_callback;
+    bt_stack_create_acl_failed_callback_t me_stack_create_acl_failed_cb;
+    extra_acl_conn_req_callback extra_acl_conn_req_update;
+    void (*set_device_support_le_audio)(const bt_bdaddr_t *remote);
+    void (*bt_report_source_link_connected)(btif_remote_device_t *dev, uint8_t errcode);
+    struct bt_hf_custom_id_t *(*bt_get_hf_custom_id)(void);
+    unsigned char *(*bt_get_address)(void);
+    unsigned char *(*bt_get_ble_address)(void);
+    bt_bdaddr_t *(*bt_get_pts_address)(void);
+    const char *(*bt_get_ble_local_name)(void);
+    uint32_t (*bt_get_class_of_device)(void);
+    // ISO buf malloc
+    void *(*iso_rx_buf_malloc)(uint32_t size);
+    void (*iso_rx_buf_free)(void *rmem);
+    // Common buf
+    unsigned char *(*stack_buf_malloc_with_ca)(uint16 size, uint32 ca, uint32 line);
+    void (*stack_buf_free_with_ca)(unsigned char *buf, uint32 ca, uint32 line);
+    bool (*stack_buf_check_buf_ava)(int size);
+    int (*stack_buf_count_ava_buf)(int size);
+    void (*stack_buf_print_statistic)(void);
+    bool (*need_hanlde_specially)(uint8_t* opcode);
+
+    // config
+    bool (*lhdc_v3)(void);
+    bool (*a2dp_sink_enable)(void);
+    bool (*bt_source_enable)(void);
+    bool (*bt_sink_enable)(void);
+    bool (*avdtp_cp_enable)(void);
+    bool (*bt_source_48k)(void);
+    bool (*source_unknown_cmd_flag)(void);
+    bool (*source_get_all_cap_flag)(void);
+    bool (*mark_some_code_for_fuzz_test)(void);
+    bool (*use_page_scan_repetition_mode_r1)(void);
+    bool (*bt_hid_cod_enable)(void);
+    bool (*hfp_support_lc3_swb_en)(void);
+    bool (*vendor_codec_en)(void);
+    bool (*normal_test_mode_switch)(void);
+    bool (*hfp_hf_pts_acs_bv_09_i)(void);
+    bool (*sniff)(void);
+    uint16_t (*dip_vendor_id)(void);
+    uint16_t (*dip_product_id)(void);
+    uint16_t (*dip_product_version)(void);
+    uint16_t (*dip_vendor_id_source)(void);
+    bool (*apple_hf_at_support)(void);
+    bool (*hf_support_hf_ind_feature)(void);
+    bool (*hf_dont_support_cli_feature)(void);
+    bool (*hf_dont_support_enhanced_call)(void);
+    bool (*hf_dont_support_3way_call)(void);
+    bool (*force_use_cvsd)(void);
+    bool (*hfp_ag_pts_ecs_02)(void);
+    bool (*hfp_ag_pts_ecc)(void);
+    bool (*hfp_ag_pts_ecs_01)(void);
+    bool (*hfp_ag_pts_enable)(void);
+    bool (*send_l2cap_echo_req)(void);
+    bool (*support_enre_mode)(void);
+    bool (*le_audio_enabled)(void);
+    bool (*hsp_enable)(void);
+    bool (*ibrt_enabled)(void);
+    bool (*freeman_enabled)(void);
+
+    void (*bth_thread_ntf)(void);
+    // add new bt callbacks below if needed
+};
+
+/**
+ *********************************************************************************************
+ *   ____ _____     ____    _    _     _     ____    _    ____ _  __   _____ _   _ _   _  ____
+ *  | __ )_   _|   / ___|  / \  | |   | |   | __ )  / \  / ___| |/ /  |  ___| | | | \ | |/ ___|
+ *  |  _ \ | |    | |     / _ \ | |   | |   |  _ \ / _ \| |   | ' /   | |_  | | | |  \| | |
+ *  | |_) || |    | |___ / ___ \| |___| |___| |_) / ___ \ |___| . \   |  _| | |_| | |\  | |___
+ *  |____/ |_|     \____/_/   \_\_____|_____|____/_/   \_\____|_|\_\  |_|    \___/|_| \_|\____|
+ *********************************************************************************************
+ */
+
+void bt_register_callback_func(struct BT_CALLBACK_FUNC_T* fn);
+uint8_t bt_callback_get_device_id_byaddr(const bt_bdaddr_t *remote);
+void bt_callback_report_source_link_connected(btif_remote_device_t *dev, uint8_t errcode);
+bool bt_callback_is_bt_thread(void);
+struct bt_hf_custom_id_t *bt_callback_get_hf_custom_id(void);
+unsigned char *bt_callback_get_address(void);
+unsigned char *bt_callback_get_ble_address(void);
+bt_bdaddr_t *bt_callback_get_pts_address(void);
+const char *bt_callback_get_ble_local_name(void);
+void *bt_callback_iso_rx_buf_malloc(uint32_t size);
+void bt_callback_iso_rx_buf_free(void *rmem);
+int bt_callback_call_func_in_bt_thread(uint32_t a, uint32_t b, uint32_t c, uint32_t d, uint32_t func);
+bool bt_callback_is_support_multipoint_ibrt(void);
+bool bt_callback_ibrt_rx_data_filter(const bt_bdaddr_t *remote,uint8_t rx_filter_type,void*para);
+void bt_callback_l2cap_sdp_disconnect(const bt_bdaddr_t *remote);
+bool bt_callback_is_snoop_link(const bt_bdaddr_t *remote);
+uint8_t bt_callback_get_tss_state(const bt_bdaddr_t *remote);
+void bt_callback_ibrt_profile_callback(uint8_t device_id, uint64_t profile,void *param1,void *param2,void* param3);
+void bt_callback_ble_start_disconnect(uint8_t conIdx);
+void bt_callback_btdrv_reconn(bool en);
+void bt_callback_load_sleep_config(uint8_t* config);
+bool bt_callback_io_capbility_request(void *bdaddr, uint8_t local_initiate);
+bool bt_callback_iocap_get_special_custom(uint16_t connhdl, bt_iocap_requirement_t *p_iocap);
+bool bt_callback_iocap_get_upper_requirement(uint16_t connhdl, bt_iocap_requirement_t *p_iocap);
+void bt_callback_sniff_timeout_ext_handler(evm_timer_t * timer, unsigned int* skipInternalHandler);
+bool bt_callback_conn_remote_is_mobile(const bt_bdaddr_t *remote);
+uint32_t bt_callback_gather_uuid_handler(int func_idx, bool only_check, uint8_t in_uuid_size, uint8_t *out_buff,
+        uint32_t out_buff_len, uint32_t *out_len, uint32_t *out_real_len);
+bool bt_callback_eir_fill_manufacture_data(uint8_t *buff, uint32_t* offset);
+void bt_callback_set_device_support_le_audio(const bt_bdaddr_t *remote);
+void bt_callback_bredr_smp_req_callback_func(uint8 device_id, uint16 conn_handle, uint16 len, uint8 *data);
+void bt_callback_ibrt_disconnect_handler(const btif_event_t *);
+uint16_t bt_callback_get_ibrt_hci_handle(const bt_bdaddr_t* remote);
+int bt_callback_ibrt_a2dp_stream_command_pack(void* remote, uint8_t transaction, uint8_t signal_id);
+void bt_callback_hf_sco_codec_info_sync_callback(const bt_bdaddr_t* remote, uint8_t codec);
+bool bt_callback_avrcp_register_notify_callback(uint8_t event);
+void bt_callback_avrcp_register_notify_response_callback(uint8_t event);
+uint32_t bt_callback_hci_sync_airmode_ind_check(uint8_t status, bt_bdaddr_t *bdaddr);
+void bt_callback_stack_create_acl_failed(const bt_bdaddr_t *);
+int bt_callback_extra_acl_conn_req_callback(uint8_t *remote, uint8_t *cod);
+uint32_t bt_callback_get_class_of_device(void);
+unsigned char *bt_callback_stack_buf_malloc(uint16 size, uint32 ca, uint32 line);
+void bt_callback_stack_buf_free(unsigned char *buf, uint32 ca, uint32 line);
+bool bt_callback_stack_buf_check_buf_ava(int size);
+int bt_callback_stack_buf_count_ava_buf(int size);
+void bt_callback_stack_buf_print_usage(void);
+bool bt_callback_need_handle_specially(uint8* op_code);
+
+/**
+ *********************************************************************************************
+ *   ____ _____     ____    _    _     _     ____    _    ____ _  __    ____ _____ ____ 
+ *  | __ )_   _|   / ___|  / \  | |   | |   | __ )  / \  / ___| |/ /   / ___|  ___/ ___|
+ *  |  _ \ | |    | |     / _ \ | |   | |   |  _ \ / _ \| |   | ' /   | |   | |_ | |  _ 
+ *  | |_) || |    | |___ / ___ \| |___| |___| |_) / ___ \ |___| . \   | |___|  _|| |_| |
+ *  |____/ |_|     \____/_/   \_\_____|_____|____/_/   \_\____|_|\_\   \____|_|   \____|
+ *********************************************************************************************
+ */
+
+int  bt_callback_int_lock();
+void bt_callback_int_unlock(int v);
+bool bt_callback_cfg_lhdc_v3(void);
+bool bt_callback_cfg_a2dp_sink_enable(void);
+bool bt_callback_cfg_bt_source_enable(void);
+bool bt_callback_cfg_bt_sink_enable(void);
+bool bt_callback_cfg_avdtp_cp_enable(void);
+bool bt_callback_cfg_bt_source_48k(void);
+bool bt_callback_cfg_source_unknown_cmd_flag(void);
+bool bt_callback_cfg_source_get_all_cap_flag(void);
+bool bt_callback_cfg_mark_some_code_for_fuzz_test(void);
+bool bt_callback_cfg_use_page_scan_repetition_mode_r1(void);
+bool bt_callback_cfg_bt_hid_cod_enable(void);
+bool bt_callback_cfg_hfp_support_lc3_swb_en(void);
+bool bt_callback_cfg_vendor_codec_en(void);
+bool bt_callback_cfg_normal_test_mode_switch(void);
+bool bt_callback_cfg_hfp_hf_pts_acs_bv_09_i(void);
+bool bt_callback_cfg_sniff(void);
+uint16_t bt_callback_cfg_dip_vendor_id(void);
+uint16_t bt_callback_cfg_dip_product_id(void);
+uint16_t bt_callback_cfg_dip_product_version(void);
+uint16_t bt_callback_cfg_dip_vendor_id_source(void);
+bool bt_callback_cfg_apple_hf_at_support(void);
+bool bt_callback_cfg_hf_support_hf_ind_feature(void);
+bool bt_callback_cfg_hf_dont_support_cli_feature(void);
+bool bt_callback_cfg_hf_dont_support_enhanced_call(void);
+bool bt_callback_cfg_hf_dont_support_3way_call(void);
+bool bt_callback_cfg_force_use_cvsd(void);
+bool bt_callback_cfg_hfp_ag_pts_ecs_02(void);
+bool bt_callback_cfg_hfp_ag_pts_ecc(void);
+bool bt_callback_cfg_hfp_ag_pts_ecs_01(void);
+bool bt_callback_cfg_hfp_ag_pts_enable(void);
+bool bt_callback_cfg_send_l2cap_echo_req(void);
+bool bt_callback_cfg_support_enre_mode(void);
+bool bt_callback_cfg_le_audio_enabled(void);
+bool bt_callback_cfg_hsp_enable(void);
+bool bt_callback_cfg_ibrt_enabled(void);
+bool bt_callback_cfg_freeman_enabled(void);
+void bt_callback_stack_notify_evm(void);
+
+#ifdef __cplusplus
+}
+#endif
+#endif /* __BT_CALLBACK_FUNC_H__ */

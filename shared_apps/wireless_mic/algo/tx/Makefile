@@ -1,0 +1,1 @@
+obj-y := tx_algo.o

@@ -1,0 +1,1 @@
+obj-y := audio_algo_ns_adapter.o

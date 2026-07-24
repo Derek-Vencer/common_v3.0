@@ -1,0 +1,589 @@
+CHIP        ?= best1307p
+
+DEBUG       ?= 1
+
+FPGA        ?= 0
+
+RTOS        ?= 1
+
+LIBC_ROM    ?= 1
+
+export LIBC_OVERRIDE ?= 1
+
+KERNEL      ?= RTX5
+VERSION_INFO ?= best1307p_ibrt
+
+export USER_SECURE_BOOT	?= 0
+# enable:1
+# disable:0
+
+WATCHER_DOG ?= 1
+
+DEBUG_PORT  ?= 1
+# 0: usb
+# 1: uart0
+# 2: uart1
+
+FLASH_CHIP	?= ALL
+# GD25Q80C
+# GD25Q32C
+# ALL
+
+export PMU_NTC_MONITOR ?= 1
+
+export INTERSYS_DEBUG ?= 1
+
+export FORCE_SIGNALINGMODE ?= 0
+
+export FORCE_NOSIGNALINGMODE ?= 0
+
+export BT_TEST_CURRENT_KEY ?= 0
+
+export BTDUMP_ENABLE ?= 0
+
+export PROFILE_DEBUG ?= 0
+
+export CTKD_ENABLE ?= 0
+
+export BTH_ROM_VERSION ?= 3
+export BTH_IN_ROM ?= 1
+ifeq ($(BTH_IN_ROM),1)
+HFP_SUPPORT_LC3_SWB := 0
+
+ifneq ($(CHIP),best1307p)
+$(error This chip not support bth-rom)
+endif
+endif
+
+export DISPLAY_PREFIX_HCI_CMD_EVT_ ?= 0
+
+AUDIO_OUTPUT_MONO ?= 0
+
+AUDIO_OUTPUT_DIFF ?= 0
+
+HW_FIR_EQ_PROCESS ?= 0
+
+SW_IIR_EQ_PROCESS ?= 0
+
+SW_IIR_PROMPT_EQ_PROCESS ?= 0
+
+HW_DAC_IIR_EQ_PROCESS ?= 1
+
+AUDIO_EQ_DYNAMICS_MEM ?= 1
+
+HW_IIR_EQ_PROCESS ?= 0
+
+HW_DC_FILTER_WITH_IIR ?= 0
+
+AUDIO_DRC ?= 0
+
+AUDIO_LIMITER ?= 0
+
+PC_CMD_UART ?= 0
+
+TOTA_EQ_TUNING ?= 0
+
+AUDIO_SECTION_ENABLE ?= 0
+
+AUDIO_RESAMPLE ?= 1
+
+RESAMPLE_ANY_SAMPLE_RATE ?= 1
+
+OSC_26M_X4_AUD2BB ?= 0
+
+export SYS_USE_BBPLL ?= 1
+
+AUDIO_OUTPUT_VOLUME_DEFAULT ?= 16
+
+# range:1~16
+
+CODEC_DAC_MULTI_VOLUME_TABLE ?= 0
+
+AUDIO_INPUT_CAPLESSMODE ?= 0
+
+AUDIO_INPUT_LARGEGAIN ?= 0
+
+AUDIO_CODEC_ASYNC_CLOSE ?= 0
+
+AUDIO_SCO_BTPCM_CHANNEL ?= 1
+
+export A2DP_CP_ACCEL ?= 1
+
+export SCO_CP_ACCEL ?= 1
+
+export SCO_TRACE_CP_ACCEL ?= 0
+
+LARGE_RAM ?= 1
+
+HSP_ENABLE ?= 0
+
+SBC_FUNC_IN_ROM ?= 0
+
+ROM_UTILS_ON ?= 1
+
+AAC_IN_ROM ?=1
+
+CVSD_IN_ROM ?=1
+
+LC3_IN_ROM_V2 ?=1
+
+OPUS_IN_ROM ?=1
+
+APP_LINEIN_A2DP_SOURCE ?= 0
+
+APP_I2S_A2DP_SOURCE ?= 0
+
+VOICE_PROMPT ?= 1
+
+TWS_PROMPT_SYNC ?= 1
+
+REPORT_CONNECTIVITY_LOG ?= 0
+
+ifneq ($(AUDIO_RESAMPLE),1)
+export AUDIO_USE_BBPLL := 1
+endif
+
+# TOTA1: old tota, TOTA2: new tota(debuging)
+export TOTA ?= 0
+export TOTA_v2 ?= 0
+
+ifeq ($(TOTA_v2),1)
+export TOTA := 0
+endif
+
+export APP_RSSI ?=0
+ifeq ($(APP_RSSI),1)
+export TOTA_v2 := 1
+KBUILD_CPPFLAGS += -DGET_PEER_RSSI_ENABLE
+endif
+
+BT_DIP_SUPPORT ?= 1
+
+AUDIO_RMS_MONITOR_ENABLE ?= 1
+
+BES_OTA ?= 0
+
+TILE_DATAPATH_ENABLED ?= 0
+
+CUSTOM_INFORMATION_TILE_ENABLE ?= 0
+
+INTERCONNECTION ?= 0
+
+INTERACTION ?= 0
+
+INTERACTION_FASTPAIR ?= 0
+
+A2DP_EQ_24BIT ?= 1
+
+A2DP_AAC_ON ?= 1
+
+AAC_REDUCE_SIZE ?= 1
+
+export A2DP_LC3_ON ?= 0
+export A2DP_LC3_HR ?= 0
+
+FACTORY_MODE ?= 1
+
+ENGINEER_MODE ?= 1
+
+ULTRA_LOW_POWER	?= 1
+
+DAC_CLASSG_ENABLE ?= 0
+
+NO_SLEEP ?= 0
+
+CORE_DUMP ?= 1
+
+CORE_DUMP_TO_FLASH ?= 0
+
+export SYNC_BT_CTLR_PROFILE ?= 0
+
+export A2DP_AVDTP_CP ?= 0
+
+export A2DP_DECODER_VER := 2
+
+export AUDIO_TRIGGER_VER := 1
+
+ifneq ($(BT_SERVICE_ENABLE),1)
+ifneq ($(BT_BUILD_WITH_CUSTOMER_HOST),1)
+export IBRT ?= 1
+
+export SEARCH_UI_COMPATIBLE_UI_V2 ?= 0
+
+# support two bt connections by default
+ifndef BT_MULTIPOINT_NUMBER
+BT_MULTIPOINT_NUMBER := 3
+endif
+
+export BTM_MAX_LINK_NUMS := $(shell echo $$(($(BT_MULTIPOINT_NUMBER) + 1)))
+export BT_DEVICE_NUM := $(BT_MULTIPOINT_NUMBER)
+
+export IBRT_UI ?= 1
+ifeq ($(IBRT_UI),1)
+KBUILD_CPPFLAGS += -DIBRT_UI
+endif
+
+export BES_AUD ?= 1
+endif
+endif
+
+export POWER_MODE   ?= DIG_DCDC
+
+export BT_RF_PREFER ?= 2M
+
+export MIX_AUDIO_PROMPT_WITH_A2DP_MEDIA_ENABLED ?= 0
+
+export PROMPT_SELF_MANAGEMENT ?= 1
+
+export IOS_MFI ?= 0
+
+export FLASH_SIZE ?= 0x200000
+export FLASH_SUSPEND ?= 1
+export FLASH_PROTECTION_BOOT_SECTION_FIRST ?= 0
+export NORFLASH_API_FLUSH_IN_SLEEP_HOOK ?= 1
+
+export POWERKEY_I2C_SWITCH ?=0
+
+AUTO_TEST ?= 0
+
+BES_AUTOMATE_TEST ?= 0
+
+export DUMP_LOG_ENABLE ?= 0
+
+export DUMP_CRASH_LOG ?= 0
+
+SUPPORT_BATTERY_REPORT ?= 1
+
+SUPPORT_HF_INDICATORS ?= 0
+
+SUPPORT_SIRI ?= 1
+
+BES_AUDIO_DEV_Main_Board_9v0 ?= 0
+
+APP_USE_LED_INDICATE_IBRT_STATUS ?= 0
+
+export BT_HOST_REJECT_UNEXCEPT_SCO_PACKET := 1
+
+export BT_PAUSE_A2DP := 1
+
+export BT_PAUSE_A2DP_WHEN_CALL_EXIST := 1
+
+export AUTO_ACCEPT_SECOND_SCO := 0
+
+export NORMAL_TEST_MODE_SWITCH ?= 0
+ifeq ($(NORMAL_TEST_MODE_SWITCH),1)
+KBUILD_CPPFLAGS += -DNORMAL_TEST_MODE_SWITCH
+endif
+
+#For ble feture verification
+export BLE := 1
+export GATT_OVER_BR_EDR ?= 0
+ifeq ($(GATT_OVER_BR_EDR),1)
+KBUILD_CPPFLAGS += -D__GATT_OVER_BR_EDR__
+endif
+
+export GFPS_ENABLE ?= 0
+
+HAS_BT_SYNC ?= 1
+
+APP_UART_MODULE ?= 0
+
+APP_CHIP_BRIDGE_MODULE ?= 0
+
+export OPT_LEVEL ?=s
+export PROMPT_IN_FLASH ?= 0
+############ RAM OPTIMIZE ############
+export USE_BASIC_THREADS ?= 1
+export SCO_OPTIMIZE_FOR_RAM ?= 1
+export BT_USE_COHEAP_ALLOC  ?= 1
+export UNIFY_HEAP_ENABLED ?= 1
+########## RAM OPTIMIZE END ##########
+
+export CPU_PC_DUMP ?= PC
+ifneq ($(CPU_PC_DUMP),)
+KBUILD_CPPFLAGS += -DCPU_PC_DUMP
+ifeq ($(CPU_PC_DUMP),PC)
+KBUILD_CPPFLAGS += -DCPU_PC_DUMP_PC
+else
+ifeq ($(CPU_PC_DUMP),LR)
+KBUILD_CPPFLAGS += -DCPU_PC_DUMP_LR
+endif
+endif
+endif
+
+export FAST_TIMER_COMPENSATE ?= 1
+export BT_DONT_PLAY_MUTE_WHEN_A2DP_STUCK_PATCH ?= 1
+
+export TRACE_BUF_SIZE ?= 4*1024
+export TRACE_BAUD_RATE ?= 10*115200
+export BTM_MAX_LINK_NUMS ?= 3
+export BT_DEVICE_NUM ?= 2
+
+#KBUILD_CPPFLAGS += -DCHARGER_SPICIAL_CHAN
+init-y :=
+core-y := platform/ utils/cqueue/ utils/list/ multimedia/ multimedia/algorithms/ utils/intersyshci/ utils/sha256/ utils/stream_mcps/ utils/cfifo/
+
+export COMMON_IRQ_ENTRY ?= 1
+ifeq ($(COMMON_IRQ_ENTRY),1)
+KBUILD_CPPFLAGS += -DCOMMON_IRQ_ENTRY
+endif
+
+export DATA_MASS_MARK_ENABLE ?= 1
+ifeq ($(DATA_MASS_MARK_ENABLE),1)
+DATA_MASS_MARK_HAL ?=1
+DATA_MASS_MARK_IRQ ?=1
+DATA_MASS_MARK_ISPI ?= 1
+DATA_MASS_MARK_SLEEP ?=1
+DATA_MASS_MARK_FLASH ?=1
+DATA_MASS_MARK_OS ?=1
+DATA_MASS_MARK_WDT ?=1
+DATA_MASS_MARK_BT_PROFILE ?=1
+DATA_MASS_MARK_CODEC ?=1
+DATA_MASS_MARK_ANC ?=1
+
+ifeq ($(DATA_MASS_MARK_HAL),1)
+KBUILD_CPPFLAGS += -DDATA_MASS_MARK_HAL
+endif
+ifeq ($(DATA_MASS_MARK_IRQ),1)
+KBUILD_CPPFLAGS += -DDATA_MASS_MARK_IRQ
+endif
+ifeq ($(DATA_MASS_MARK_ISPI),1)
+KBUILD_CPPFLAGS += -DDATA_MASS_MARK_ISPI
+endif
+ifeq ($(DATA_MASS_MARK_SLEEP),1)
+KBUILD_CPPFLAGS += -DDATA_MASS_MARK_SLEEP
+endif
+ifeq ($(DATA_MASS_MARK_FLASH),1)
+KBUILD_CPPFLAGS += -DDATA_MASS_MARK_FLASH
+endif
+ifeq ($(DATA_MASS_MARK_OS),1)
+KBUILD_CPPFLAGS += -DDATA_MASS_MARK_OS
+endif
+ifeq ($(DATA_MASS_MARK_WDT),1)
+KBUILD_CPPFLAGS += -DDATA_MASS_MARK_WDT
+endif
+ifeq ($(DATA_MASS_MARK_BT_PROFILE),1)
+KBUILD_CPPFLAGS += -DDATA_MASS_MARK_BT_PROFILE
+endif
+ifeq ($(DATA_MASS_MARK_CODEC),1)
+KBUILD_CPPFLAGS += -DDATA_MASS_MARK_CODEC
+endif
+ifeq ($(DATA_MASS_MARK_ANC),1)
+KBUILD_CPPFLAGS += -DDATA_MASS_MARK_ANC
+endif
+KBUILD_CPPFLAGS += -DDATA_MASS_MARK_ENABLE
+endif
+KBUILD_CPPFLAGS += -Iservices/data_mass_mark
+
+ifneq ($(EXT_SRC_DIR),)
+core-y += $(EXT_SRC_DIR)
+else
+core-y += apps/ services/
+endif
+
+KBUILD_CPPFLAGS += \
+    -Iplatform/cmsis/inc \
+    -Iservices/audioflinger \
+    -Iplatform/hal
+
+KBUILD_CPPFLAGS += \
+    -DCHARGER_PLUGINOUT_RESET=0
+
+KBUILD_CPPFLAGS += \
+    -DBTM_MAX_LINK_NUMS=$(BTM_MAX_LINK_NUMS) \
+    -DBT_DEVICE_NUM=$(BT_DEVICE_NUM)
+
+ifeq ($(BES_AUDIO_DEV_Main_Board_9v0),1)
+KBUILD_CPPFLAGS += -DBES_AUDIO_DEV_Main_Board_9v0
+endif
+
+ifeq ($(TPORTS_KEY_COEXIST),1)
+KBUILD_CPPFLAGS += -DTPORTS_KEY_COEXIST
+endif
+
+#-DIBRT_LINK_LOWLAYER_MONITOR
+
+#-D_AUTO_SWITCH_POWER_MODE__
+#-D__APP_KEY_FN_STYLE_A__
+#-D__APP_KEY_FN_STYLE_B__
+#-D__EARPHONE_STAY_BOTH_SCAN__
+#-D__POWERKEY_CTRL_ONOFF_ONLY__
+#-DAUDIO_LINEIN
+
+ifeq ($(CURRENT_TEST),1)
+export SMALL_RET_RAM ?= 1
+export CORE_SLEEP_POWER_DOWN ?= 1
+#INTSRAM_RUN ?= 1
+endif
+ifeq ($(INTSRAM_RUN),1)
+LDS_FILE ?= best1000_intsram.lds
+else
+LDS_FILE ?= best1000_1307p.lds
+endif
+
+export OTA_SUPPORT_SLAVE_BIN ?= 0
+ifeq ($(OTA_SUPPORT_SLAVE_BIN),1)
+export SLAVE_BIN_FLASH_OFFSET ?= 0x100000
+export SLAVE_BIN_TARGET_NAME ?= anc_usb
+endif
+
+ifeq ($(BES_OTA),1)
+# enabled when 1501 flash remap is ready
+FLASH_REMAP ?= 0
+ifeq ($(FLASH_REMAP),1)
+NEW_IMAGE_FLASH_OFFSET ?= OTA_REMAP_OFFSET
+endif
+IS_BLE_RX_HANDLER_THREAD_ENABLED ?= 1
+endif
+
+ifneq ($(A2DP_DECODER_VER), )
+KBUILD_CPPFLAGS += -DA2DP_DECODER_VER=$(A2DP_DECODER_VER)
+endif
+
+ifneq ($(AUDIO_TRIGGER_VER), )
+KBUILD_CPPFLAGS += -DAUDIO_TRIGGER_VER=$(AUDIO_TRIGGER_VER)
+endif
+
+export NO_OVERLAY ?= 0
+
+export BT_PLD_SIMU ?= 0
+
+export BT_PLD_SOURCE_SIMU ?=0
+
+export HFP_AG_SIMU ?=0
+
+ifeq ($(BT_PLD_SOURCE_SIMU),1)
+
+export BT_SOURCE ?= 1
+export SOURCE_TRACE_RX ?= 1
+export BT_SOURCE_SIMU ?=1
+
+ifeq ($(HFP_AG_SIMU),1)
+export HFP_AG_TEST ?= 1
+export HFP_AG_SCO_AUTO_CONN ?= 1
+export BT_HFP_AG_ROLE ?=1
+else
+export A2DP_SOURCE_TEST ?= 1
+export A2DP_SOURCE_AUTO_START ?= 1
+export APP_LINEIN_A2DP_SOURCE ?= 1
+endif
+
+endif
+
+export AUDIO_OUTPUT_DC_AUTO_CALIB ?= 1
+export DAC_CALIB_LARGE_DIG_DC ?= 0x2FE0
+export AUDIO_ADC_DC_AUTO_CALIB ?= 1
+
+ifeq ($(REPORT_CONNECTIVITY_LOG),1)
+KBUILD_CPPFLAGS += -D__CONNECTIVITY_LOG_REPORT__
+KBUILD_CPPFLAGS += -D__AUDIO_RETRIGGER_REPORT__
+endif
+
+#chip pakage version
+# CHIP_PACKAGE_VER := 1  BES2710IUC2-4X1
+# CHIP_PACKAGE_VER := 2  BES2710IUC2-4X2
+# CHIP_PACKAGE_VER := 3  BES2710IUC2-4X
+# CHIP_PACKAGE_VER := 4  BES2710IUC3-4X
+
+ifeq ($(CHIP),best1307p)
+export CHIP_PACKAGE_NAME=BES2710IUC3-4X
+ifeq ($(CHIP_PACKAGE_NAME),BES2710IUC2-4X1)
+export CHIP_PACKAGE_VER ?= 1
+export CP_IN_SAME_EE := 0
+export A2DP_CP_ACCEL := 0
+export SCO_CP_ACCEL := 0
+export SCO_TRACE_CP_ACCEL := 0
+# ram 256k-64k adc 2
+# KBUILD_CPPFLAGS += -DRAM_TOTAL_SIZE=192*1024
+else ifeq ($(CHIP_PACKAGE_NAME),BES2710IUC2-4X2)
+export CHIP_PACKAGE_VER ?= 2
+export CP_IN_SAME_EE := 1
+export A2DP_CP_ACCEL := 1
+export SCO_CP_ACCEL := 1
+export SCO_TRACE_CP_ACCEL := 0
+# ram 352k-64k adc 2
+# export RAMCPX_SIZE :=  32*1024
+# export RAMCP_SIZE  := 64*1024
+# KBUILD_CPPFLAGS += -DRAMCPX_BASE=0x00240000
+# KBUILD_CPPFLAGS += -DRAM_TOTAL_SIZE=288*1024
+else ifeq ($(CHIP_PACKAGE_NAME),BES2710IUC2-4X)
+export CHIP_PACKAGE_VER ?= 3
+export CP_IN_SAME_EE := 1
+export A2DP_CP_ACCEL := 1
+export SCO_CP_ACCEL := 1
+export SCO_TRACE_CP_ACCEL := 0
+# ram 576k-64k  adc 2
+KBUILD_CPPFLAGS += -DRAM_TOTAL_SIZE=512*1024
+else ifeq ($(CHIP_PACKAGE_NAME),BES2710IUC3-4X)
+export CHIP_PACKAGE_VER ?= 4
+export CP_IN_SAME_EE := 1
+export A2DP_CP_ACCEL := 1
+export SCO_CP_ACCEL := 1
+export SCO_TRACE_CP_ACCEL := 0
+# ram 576k-64k adc 3
+KBUILD_CPPFLAGS += -DRAM_TOTAL_SIZE=512*1024
+else
+$(error Invalid CHIP_PACKAGE_VER support)
+endif
+
+ifneq ($(CHIP_PACKAGE_VER),)
+KBUILD_CPPFLAGS += -DCHIP_PACKAGE_VER=$(CHIP_PACKAGE_VER)
+endif
+endif
+
+
+KBUILD_CFLAGS +=
+
+LIB_LDFLAGS += -lstdc++ -lsupc++
+
+DUAL_MIC_RECORDING ?= 0
+RECORDING_USE_SCALABLE ?= 0
+RECORDING_USE_OPUS ?= 0
+RECORDING_USE_OPUS_LOWER_BANDWIDTH ?= 0
+STEREO_RECORD_PROCESS ?= 0
+
+# mutex for power on tws pairing and freeman pairing
+POWER_ON_ENTER_TWS_PAIRING_ENABLED ?= 0
+POWER_ON_ENTER_FREEMAN_PAIRING_ENABLED ?= 0
+POWER_ON_ENTER_BOTH_SCAN_MODE ?= 0
+
+OS_THREAD_TIMING_STATISTICS_ENABLE ?= 0
+
+#CFLAGS_IMAGE += -u _printf_float -u _scanf_float
+
+#LDFLAGS_IMAGE += --wrap main
+export USE_LIB ?= 1
+ifeq ($(USE_LIB),1)
+KBUILD_CPPFLAGS += -DUSE_LIB
+endif
+include $(srctree)/config/$(CHIP)/bt_config.mk
+
+export ANC_APP ?= 0
+ifeq ($(ANC_APP),1)
+include $(srctree)/config/$(CHIP)/anc_cfg.mk
+endif
+
+export ANC_ASSIST_ENABLED   ?= 0
+ifeq ($(ANC_ASSIST_ENABLED),1)
+include $(srctree)/config/$(CHIP)/anc_assist_cfg.mk
+endif
+
+#ifeq ($(CAPSENSOR_ENABLE),1)
+include config/$(CHIP)/capsensor_cfg.mk
+#endif
+
+export LEA_ENABLE  ?= 0
+ifeq ($(LEA_ENABLE),1)
+include $(srctree)/config/$(CHIP)/lea_config.mk
+endif
+
+include $(srctree)/config/$(CHIP)/speech_config.mk
+
+include $(srctree)/config/$(CHIP)/mem_config.mk
+
+ifeq ($(DOLBY_AUDIO_ENABLE),1)
+include $(srctree)/config/$(CHIP)/dolby_config.mk
+endif
+ifeq ($(or $(BESUI_TWS_EN), $(BESUI_STEREO_EN)), 1)
+include $(srctree)/config/besui.mk
+endif

@@ -1,0 +1,1 @@
+obj-y := rx_algo.o

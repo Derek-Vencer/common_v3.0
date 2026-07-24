@@ -1,0 +1,26 @@
+#### CAP CONFIG ######
+export CAPSENSOR_AT_MCU ?= 1
+
+export CHIP_CAPSENSOR_VER ?= 4
+
+export CAPSENSOR_FP_MODE ?= 1
+
+export RC_CLK_ENABLE ?= 0
+
+export CAPSENSOR_READ_DATA_POLLING ?= 1
+
+#customer config
+export CAP_CHNL_BONDING_WITH_GPIO ?=0
+
+export CAPSENSOR_TOUCH ?= 0
+
+export CAPSENSOR_WEAR ?= 0
+
+export CAPSENSOR_SLIDE ?= 0
+
+export CAPSENSOR_TRACE_DEBUG ?= 0
+
+export CAPSENSOR_SPP_SERVER ?= 0
+
+export CAPSENSOR_WEAR_USE_ONE_PAD ?= 0
+#end

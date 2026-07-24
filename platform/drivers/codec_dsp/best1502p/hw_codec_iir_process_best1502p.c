@@ -1,0 +1,1035 @@
+/***************************************************************************
+ *
+ * Copyright 2015-2024 BES.
+ * All rights reserved. All unpublished rights reserved.
+ *
+ * No part of this work may be used or reproduced in any form or by any
+ * means, or stored in a database or retrieval system, without prior written
+ * permission of BES.
+ *
+ * Use of this work is governed by a license granted by BES.
+ * This work contains confidential and proprietary information of
+ * BES. which is protected by copyright, trade secret,
+ * trademark and other intellectual property rights.
+ *
+ ****************************************************************************/
+/*******************************************************************************
+** namer: DAC EQ filter
+** description: EQ IIR filter
+** version: V1.0
+** author: xuml
+** modify: 2020.10.5.
+*******************************************************************************/
+
+#include "mm_dbg.h"
+#include <stdio.h>
+#include <string.h>
+
+#include "plat_addr_map.h"
+#include CHIP_SPECIFIC_HDR(reg_codec)
+#include "cmsis.h"
+#include "hal_trace.h"
+#include "hal_cmu.h"
+#include "hal_codec.h"
+#include "hal_timer.h"
+#include "iir_process.h"
+#include "hw_codec_iir_process.h"
+#include "hwtimer_list.h"
+#include "hal_chipid.h"
+
+/**********************************mocro**************************************/
+
+typedef short int16;
+typedef unsigned short uint16;
+typedef int int32;
+typedef unsigned int uint32;
+
+/*
+1    258    codec_deq_iir_enable                      RW    0    0     anc iir module enable
+1    258    codec_deq_iir_iira_enable                 RW    0    1
+1    258    codec_deq_iir_iirb_enable                 RW    0    2
+1    258    codec_deq_iir_ch0_bypass                  RW    0    3     1: ch0 bypass
+1    258    codec_deq_iir_ch1_bypass                  RW    0    4
+1    258    codec_deq_iir_gaincal_ext_ch0_bypass      RW    1    5
+1    258    codec_deq_iir_gaincal_ext_ch1_bypass      RW    1    6
+1    258    codec_deq_iir_gainuse_ext_ch0_bypass      RW    1    7
+1    258    codec_deq_iir_gainuse_ext_ch1_bypass      RW    1    8
+6    258    codec_deq_iir_count_ch0                   RW    0    9     ch0 iir number  0~8
+6    258    codec_deq_iir_count_ch1                   RW    0    15
+1    258    codec_deq_iir_coef_swap                   RW    0    21    0: use iir coef memory0;  1: use iir coef memory1;
+1    258    codec_deq_iir_auto_stop                   RW    0    22    read only;  coef memoryX used currently
+1    258    codec_deq_iir_coef_swap_status_sync[1]    R     0    23    read only;  coef memoryX used currently
+1    258    codec_deq_iir_iira_stop_status_sync[1]    R     0    24
+1    258    codec_deq_iir_iirb_stop_status_sync[1]    R     0    25
+26   258    x
+*/
+struct _deq_iir_d_control
+{
+    uint32 codec_deq_iir_enable : 1;
+
+    uint32 codec_deq_iir_iira_enable : 1;
+    uint32 codec_deq_iir_iirb_enable : 1;
+
+    uint32 codec_deq_iir_ch0_bypass : 1;
+    uint32 codec_deq_iir_ch1_bypass : 1;
+
+    uint32 codec_deq_iir_gaincal_ext_ch0_bypass : 1;
+    uint32 codec_deq_iir_gaincal_ext_ch1_bypass : 1;
+    uint32 codec_deq_iir_gainuse_ext_ch0_bypass : 1;
+    uint32 codec_deq_iir_gainuse_ext_ch1_bypass : 1;
+
+    uint32 codec_codec_deq_iir_lmt_ch0_bypass : 1;
+    uint32 codec_codec_deq_iir_lmt_ch1_bypass : 1;
+
+    uint32 codec_deq_iir_count_ch0 : 6;
+    uint32 codec_deq_iir_count_ch1 : 6;
+
+    uint32 codec_deq_iir_coef_swap : 1;
+    uint32 codec_deq_iir_auto_stop : 1;
+
+    uint32 codec_deq_iir_coef_swap_status_sync : 1;
+    uint32 codec_deq_iir_iira_stop_status_sync : 1;
+    uint32 codec_deq_iir_iirb_stop_status_sync : 1;
+
+    uint32 reserved : 4;
+};
+
+/*
+1     25c    codec_iir0_gain_ext_update_ch0       RW    0    0
+1     25c    codec_iir0_gain_ext_update_ch1       RW    0    1
+1     25c    codec_iir0_gain_ext_sel_ch0          RW    0    2
+1     25c    codec_iir0_gain_ext_sel_ch1          RW    0    3
+1     25c    codec_iir1_gain_ext_update_ch0       RW    0    4
+1     25c    codec_iir1_gain_ext_update_ch1       RW    0    5
+1     25c    codec_iir1_gain_ext_sel_ch0          RW    0    6
+1     25c    codec_iir1_gain_ext_sel_ch1          RW    0    7
+1     25c    codec_iir2_gain_ext_update_ch0       RW    0    8
+1     25c    codec_iir2_gain_ext_update_ch1       RW    0    9
+1     25c    codec_iir2_gain_ext_sel_ch0          RW    0    10
+1     25c    codec_iir2_gain_ext_sel_ch1          RW    0    11
+1     25c    codec_iir3_gain_ext_update_ch0       RW    0    12
+1     25c    codec_iir3_gain_ext_update_ch1       RW    0    13
+1     25c    codec_iir3_gain_ext_sel_ch0          RW    0    14
+1     25c    codec_iir3_gain_ext_sel_ch1          RW    0    15
+1     25c    codec_deq_iir_gain_ext_update_ch0    RW    0    16
+1     25c    codec_deq_iir_gain_ext_update_ch1    RW    0    17
+1     25c    codec_deq_iir_gain_ext_sel_ch0       RW    0    18
+1     25c    codec_deq_iir_gain_ext_sel_ch1       RW    0    19
+1     25c    codec_iir0_lmt_th_update_ch0         RW    0    20
+1     25c    codec_iir0_lmt_th_update_ch1         RW    0    21
+1     25c    codec_iir1_lmt_th_update_ch0         RW    0    22
+1     25c    codec_iir1_lmt_th_update_ch1         RW    0    23
+1     25c    codec_iir2_lmt_th_update_ch0         RW    0    24
+1     25c    codec_iir2_lmt_th_update_ch1         RW    0    25
+1     25c    codec_iir3_lmt_th_update_ch0         RW    0    26
+1     25c    codec_iir3_lmt_th_update_ch1         RW    0    27
+22    25c    x
+*/
+struct _anc_iir_gain_update
+{
+    uint32 codec_iir0_gain_ext_update_ch0 : 1;
+    uint32 codec_iir0_gain_ext_update_ch1 : 1;
+    uint32 codec_iir0_gain_ext_sel_ch0 : 1;
+    uint32 codec_iir0_gain_ext_sel_ch1 : 1;
+
+    uint32 codec_iir1_gain_ext_update_ch0 : 1;
+    uint32 codec_iir1_gain_ext_update_ch1 : 1;
+    uint32 codec_iir1_gain_ext_sel_ch0 : 1;
+    uint32 codec_iir1_gain_ext_sel_ch1 : 1;
+
+    uint32 codec_iir2_gain_ext_update_ch0 : 1;
+    uint32 codec_iir2_gain_ext_update_ch1 : 1;
+    uint32 codec_iir2_gain_ext_sel_ch0 : 1;
+    uint32 codec_iir2_gain_ext_sel_ch1 : 1;
+
+    uint32 codec_iir3_gain_ext_update_ch0 : 1;
+    uint32 codec_iir3_gain_ext_update_ch1 : 1;
+    uint32 codec_iir3_gain_ext_sel_ch0 : 1;
+    uint32 codec_iir3_gain_ext_sel_ch1 : 1;
+
+    uint32 codec_deq_iir_gain_ext_update_ch0 : 1;
+    uint32 codec_deq_iir_gain_ext_update_ch1 : 1;
+    uint32 codec_deq_iir_gain_ext_sel_ch0 : 1;
+    uint32 codec_deq_iir_gain_ext_sel_ch1 : 1;
+
+    uint32 codec_iir0_lmt_th_update_ch0 : 1;
+    uint32 codec_iir0_lmt_th_update_ch1 : 1;
+    uint32 codec_iir1_lmt_th_update_ch0 : 1;
+    uint32 codec_iir1_lmt_th_update_ch1 : 1;
+    uint32 codec_iir2_lmt_th_update_ch0 : 1;
+    uint32 codec_iir2_lmt_th_update_ch1 : 1;
+    uint32 codec_iir3_lmt_th_update_ch0 : 1;
+    uint32 codec_iir3_lmt_th_update_ch1 : 1;
+
+    uint32 codec_codec_deq_iir_lmt_th_update_ch0 : 1;
+    uint32 codec_codec_deq_iir_lmt_th_update_ch1 : 1;
+
+    uint32 Reserved : 4;
+};
+
+/*
+1     bc    codec_adc_mc_en_ch0         RW    0    0    adc ch0 music cancel enable
+1     bc    codec_feedback_mc_en_ch0    RW    0    1    feedback music cancel enable
+1     bc    codec_dac_L_eq_enable      RW    0    2
+1     bc    codec_adc_ch0_iir_enable    RW    0    3
+1     bc    codec_adc_ch1_iir_enable    RW    0    4
+1     bc    codec_adc_ch2_iir_enable    RW    0    5
+1     bc    codec_adc_ch3_iir_enable    RW    0    6
+4     bc    codec_fb_check_udc_ch0      RW    0    7
+11    bc    x
+*/
+struct _codec_dac_iir_config
+{
+    uint32 reserved0 : 4;
+    uint32 codec_dac_L_eq_enable : 1;
+    uint32 codec_dac_R_eq_enable : 1;
+    uint32 reserved1 : 26;
+};
+
+/*
+iir coefficients(b/a Q27)
+a1
+a2
+b1
+b2
+b0
+*/
+struct _iir_coefs
+{
+    int32 a1;
+    int32 a2;
+
+    int32 b1;
+    int32 b2;
+    int32 b0;
+};
+
+typedef struct _anc_rir_coefs
+{
+    int32_t coef_b[3];
+    int32_t coef_a[3];
+} anc_iir_coefs;
+
+#define GAIN_Q (9)
+#define FIXED_COEF_Q (1 << 27)
+#define FIXED_GAIN_RAMP_Q (1 << 27)
+
+#define DEQ_GAIN_RAMP_THRESHLD (40)
+#define DEQ_GAIN_RAMP_ZERO (20)
+#define DEQ_GAIN_RAMP_BURST_THRESHLD (DEQ_GAIN_RAMP_THRESHLD * 10000)
+
+#define IIR_DAC_COUNTER_L (20)
+#define IIR_DAC_COUNTER_R (20)
+#define IIR_DAC_COUNTER_MAX (40)
+
+#define ANC_BASE ((uint32)CODEC_BASE)
+#define IIR_COEF_BASE (ANC_BASE + 0x5000)
+/*******************************data struction***********************************/
+// EQ IIR registers
+volatile static struct _deq_iir_d_control *deq_iir_d_control =
+    (volatile struct _deq_iir_d_control *)(ANC_BASE + 0x258);
+volatile static struct _codec_dac_iir_config *codec_dac_iir_config =
+    (volatile struct _codec_dac_iir_config *)(ANC_BASE + 0xdc);
+// iira
+volatile static struct _iir_coefs *deq_dac_iir_coefs0_l =
+    (volatile struct _iir_coefs *)(IIR_COEF_BASE);
+volatile static struct _iir_coefs *deq_dac_iir_coefs0_r =
+    (volatile struct _iir_coefs *)(IIR_COEF_BASE + IIR_DAC_COUNTER_L * 20);
+
+volatile static struct _iir_coefs *deq_dac_gain_iir_coefs0_l =
+    (volatile struct _iir_coefs *)(IIR_COEF_BASE + 0x320);
+volatile static struct _iir_coefs *deq_dac_gain_iir_coefs0_r =
+    (volatile struct _iir_coefs *)(IIR_COEF_BASE + 0x334);
+// iirb
+volatile static struct _iir_coefs *deq_dac_iir_coefs1_l =
+    (volatile struct _iir_coefs *)(IIR_COEF_BASE + 0x400);
+volatile static struct _iir_coefs *deq_dac_iir_coefs1_r =
+    (volatile struct _iir_coefs *)(IIR_COEF_BASE + 0x400 + IIR_DAC_COUNTER_L * 20);
+
+volatile static struct _iir_coefs *deq_dac_gain_iir_coefs1_l =
+    (volatile struct _iir_coefs *)(IIR_COEF_BASE + 0x720);
+volatile static struct _iir_coefs *deq_dac_gain_iir_coefs1_r =
+    (volatile struct _iir_coefs *)(IIR_COEF_BASE + 0x734);
+
+volatile static int32 *codec_deq_iir_gaina_ext_ch0 = (volatile int32 *)(ANC_BASE + 0x2e0);
+volatile static int32 *codec_deq_iir_gaina_ext_ch1 = (volatile int32 *)(ANC_BASE + 0x2e4);
+volatile static int32 *codec_deq_iir_gainb_ext_ch0 = (volatile int32 *)(ANC_BASE + 0x2e8);
+volatile static int32 *codec_deq_iir_gainb_ext_ch1 = (volatile int32 *)(ANC_BASE + 0x2ec);
+/*
+volatile static int32 *codec_deq_iir_gaina_ext_out_ch0_sync = \
+                                                            (volatile int32 *)(ANC_BASE + 0x02f0);
+volatile static int32 *codec_deq_iir_gainb_ext_out_ch0_sync = \
+                                                            (volatile int32 *)(ANC_BASE + 0x02f8);
+ */
+volatile static int32 *codec_deq_iir_gain_ext_th = (volatile int32 *)(ANC_BASE + 0x0318);
+
+volatile static struct _anc_iir_gain_update *anc_iir_gain_update =
+    (volatile struct _anc_iir_gain_update *)(ANC_BASE + 0x25c);
+
+static uint8_t dac_eq_counter_l = IIR_DAC_COUNTER_L;
+static uint8_t dac_eq_counter_r = IIR_DAC_COUNTER_R;
+
+volatile static int dac_eq_output_ch_map = AUD_CHANNEL_MAP_CH0 | AUD_CHANNEL_MAP_CH1;
+
+#define DEQ_GAIN_RAMP_DELAY (1)
+
+#if DEQ_GAIN_RAMP_DELAY == 1
+/*
+Type='Low Passing';
+Freq=240;
+Gain=0;
+Q=0.2;
+[b,a]=biquad1(Freq,Gain,Q,Type,SampleRate);
+*/
+static const anc_iir_coefs iir_coef_gain_ramp_deq =
+{
+    .coef_b = {30703, 61406, 30703},
+    .coef_a = {134217728, -248768019, 114673103},
+};
+#define DEQ_SET_GAIN_TIME ((MS_TO_TICKS(50)))
+
+#elif DEQ_GAIN_RAMP_DELAY == 2
+/*
+Type='Low Passing';
+Freq=120;
+Gain=0;
+Q=0.2;
+[b,a]=biquad1(Freq,Gain,Q,Type,SampleRate);
+*/
+static const anc_iir_coefs iir_coef_gain_ramp_deq =
+{
+    .coef_b = {7966, 15932, 7966},
+    .coef_a = {134217728, -258260876, 124075013},
+};
+#define DEQ_SET_GAIN_TIME ((MS_TO_TICKS(100)))
+
+#elif DEQ_GAIN_RAMP_DELAY == 3
+/*
+Type='Low Passing';
+Freq=60;
+Gain=0;
+Q=0.2;
+[b,a]=biquad1(Freq,Gain,Q,Type,SampleRate);
+*/
+static const anc_iir_coefs iir_coef_gain_ramp_deq =
+{
+    .coef_b = {2030, 4060, 2030},
+    .coef_a = {134217728, -263258168, 129048560},
+};
+#define DEQ_SET_GAIN_TIME ((MS_TO_TICKS(200)))
+
+#elif DEQ_GAIN_RAMP_DELAY == 4
+/*
+Type='Low Passing';
+Freq=30;
+Gain=0;
+Q=0.2;
+[b,a]=biquad1(Freq,Gain,Q,Type,SampleRate);
+*/
+static const anc_iir_coefs iir_coef_gain_ramp_deq =
+{
+    .coef_b = {512, 1025, 512},
+    .coef_a = {134217728, -265823675, 131607997},
+};
+#define DEQ_SET_GAIN_TIME ((MS_TO_TICKS(400)))
+#endif
+
+#define TRACE_COUNTER (10000)
+
+static int32 trace_counter = 0;
+
+volatile static enum AUD_SAMPRATE_T sample_rate_dac;
+
+volatile static int32 deq_iir_gaina_ch0;
+volatile static int32 deq_iir_gainb_ch0;
+
+volatile static int32 deq_iir_gaina_ch1;
+volatile static int32 deq_iir_gainb_ch1;
+
+volatile static int max_deq_gain_l = 0;
+volatile static int max_deq_gain_r = 0;
+
+static HW_CODEC_IIR_FILTERS_T dac_filtes_l_old;
+static HW_CODEC_IIR_FILTERS_T dac_filtes_r_old;
+
+HW_CODEC_IIR_CFG_T dac_iir_cfg;
+HW_CODEC_IIR_CFG_T dac_iir_cfg_new;
+
+volatile static uint8_t dac_open_flag = 0;
+volatile static uint8_t dac_iir_reset_flag;
+volatile static uint8_t iir_coef_using;
+
+static bool deq_using_flag = 0;
+static bool deq_reserve_flag = 0;
+static uint32_t deq_switching_coef_delay;
+static HWTIMER_ID deq_switching_timer = NULL;
+
+hw_dac_limiter_cfg_t g_dac_eq_limiter_cfg = {
+    .limiter_param_ch0 = {
+        .enable = 0,
+    },
+
+    .limiter_param_ch1 = {
+        .enable = 0,
+    },
+};
+
+static int iir_eq_filter_para_copy(HW_CODEC_IIR_FILTERS_T *filtes_old,
+                                   const HW_CODEC_IIR_FILTERS_T *filtes_new, int iir_dac_counter)
+{
+    uint8_t i;
+    filtes_old->iir_counter = filtes_new->iir_counter;
+    filtes_old->iir_bypass_flag = filtes_new->iir_bypass_flag;
+
+    if (filtes_new->iir_counter > iir_dac_counter)
+    {
+        LOG_I( "%s: warning filtes_new->iir_counter:%d", __func__, filtes_new->iir_counter);
+        filtes_old->iir_counter = iir_dac_counter;
+    }
+    else if (filtes_new->iir_counter <= 0)
+    {
+        LOG_I( "%s: warning filtes_new->iir_counter:%d", __func__, filtes_new->iir_counter);
+        filtes_old->iir_counter = 0;
+        filtes_old->iir_bypass_flag = 1;
+    }
+
+    for (i = 0; i < filtes_old->iir_counter; i++)
+    {
+        filtes_old->iir_coef[i] = filtes_new->iir_coef[i];
+    }
+
+    for (; i < iir_dac_counter; i++)
+    {
+        filtes_old->iir_coef[i].coef_a[0] = FIXED_COEF_Q;
+        filtes_old->iir_coef[i].coef_a[1] = 0;
+        filtes_old->iir_coef[i].coef_a[2] = 0;
+        filtes_old->iir_coef[i].coef_b[0] = FIXED_COEF_Q;
+        filtes_old->iir_coef[i].coef_b[1] = 0;
+        filtes_old->iir_coef[i].coef_b[2] = 0;
+    }
+
+    filtes_old->iir_counter = iir_dac_counter;
+
+    return 0;
+}
+
+static int iir_eq_filter_coef_copy(volatile struct _iir_coefs *anc_iircoefs,
+                                   HW_CODEC_IIR_FILTERS_T *filtes_old)
+{
+    // LOG_I( "%s:anc_iircoefs:0x%x", __func__, (int)anc_iircoefs/);
+    for (uint8_t i = 0; i < filtes_old->iir_counter; i++)
+    {
+        anc_iircoefs[i].a1 = -filtes_old->iir_coef[i].coef_a[1];
+        anc_iircoefs[i].a2 = -filtes_old->iir_coef[i].coef_a[2];
+        anc_iircoefs[i].b0 = filtes_old->iir_coef[i].coef_b[0];
+        anc_iircoefs[i].b1 = filtes_old->iir_coef[i].coef_b[1];
+        anc_iircoefs[i].b2 = filtes_old->iir_coef[i].coef_b[2];
+    }
+
+    return 0;
+}
+
+static int deq_gaina_cfg_gain(void)
+{
+    uint32_t lock;
+
+    LOG_I( "%s:deq_iir_gaina_ch0:%d, deq_iir_gaina_ch1:%d", __func__, deq_iir_gaina_ch0,
+          deq_iir_gaina_ch1);
+    lock = int_lock();
+
+    if (dac_eq_output_ch_map & AUD_CHANNEL_MAP_CH0)
+    {
+        anc_iir_gain_update->codec_deq_iir_gain_ext_update_ch0 = 0;
+        *codec_deq_iir_gaina_ext_ch0 = deq_iir_gaina_ch0;
+        *codec_deq_iir_gainb_ext_ch0 = DEQ_GAIN_RAMP_ZERO;
+        hal_sys_timer_delay_us(2);
+        anc_iir_gain_update->codec_deq_iir_gain_ext_update_ch0 = 1;
+    }
+
+    if (dac_eq_output_ch_map & AUD_CHANNEL_MAP_CH1)
+    {
+        anc_iir_gain_update->codec_deq_iir_gain_ext_update_ch1 = 0;
+        *codec_deq_iir_gaina_ext_ch1 = deq_iir_gaina_ch1;
+        *codec_deq_iir_gainb_ext_ch1 = DEQ_GAIN_RAMP_ZERO;
+        hal_sys_timer_delay_us(2);
+        anc_iir_gain_update->codec_deq_iir_gain_ext_update_ch1 = 1;
+    }
+
+    int_unlock(lock);
+
+    return 0;
+}
+
+static int deq_gainb_cfg_gain(void)
+{
+    uint32_t lock;
+
+    LOG_I( "%s:deq_iir_gainb_ch0:%d, deq_iir_gainb_ch1:%d", __func__, deq_iir_gainb_ch0,
+          deq_iir_gainb_ch1);
+    lock = int_lock();
+
+    if (dac_eq_output_ch_map & AUD_CHANNEL_MAP_CH0)
+    {
+        anc_iir_gain_update->codec_deq_iir_gain_ext_update_ch0 = 0;
+        *codec_deq_iir_gaina_ext_ch0 = DEQ_GAIN_RAMP_ZERO;
+        *codec_deq_iir_gainb_ext_ch0 = deq_iir_gainb_ch0;
+        hal_sys_timer_delay_us(2);
+        anc_iir_gain_update->codec_deq_iir_gain_ext_update_ch0 = 1;
+    }
+
+    if (dac_eq_output_ch_map & AUD_CHANNEL_MAP_CH1)
+    {
+        anc_iir_gain_update->codec_deq_iir_gain_ext_update_ch1 = 0;
+        *codec_deq_iir_gaina_ext_ch1 = DEQ_GAIN_RAMP_ZERO;
+        *codec_deq_iir_gainb_ext_ch1 = deq_iir_gainb_ch1;
+        hal_sys_timer_delay_us(2);
+        anc_iir_gain_update->codec_deq_iir_gain_ext_update_ch1 = 1;
+    }
+
+    int_unlock(lock);
+
+    return 0;
+}
+
+static int hw_codec_iir_set_dac_cfg_internal(HW_CODEC_IIR_CFG_T *cfg)
+{
+    HW_CODEC_IIR_ERROR err = HW_CODEC_IIR_NO_ERR;
+    const HW_CODEC_IIR_FILTERS_T *dac_filtes_l = NULL;
+    const HW_CODEC_IIR_FILTERS_T *dac_filtes_r = NULL;
+
+    LOG_I( "%s:", __func__);
+
+    if (dac_open_flag == 0)
+    {
+        LOG_I( "%s: dac iir not opened", __func__);
+        return HW_CODEC_IIR_TYPE_ERR;
+    }
+
+    dac_filtes_l = &(cfg->iir_filtes_l);
+    dac_filtes_r = &(cfg->iir_filtes_r);
+
+#if 0
+    LOG_I( "eq counter_l %d, eq counter_r %d", dac_filtes_l->iir_counter, \
+                                                    dac_filtes_r->iir_counter);
+    for (int j = 0; j < dac_filtes_l->iir_counter; j++) {
+        LOG_I( "iir coef dac eq l 0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x",\
+        dac_filtes_l->iir_coef[j].coef_a[0], \
+        dac_filtes_l->iir_coef[j].coef_a[1], \
+        dac_filtes_l->iir_coef[j].coef_a[2], \
+        dac_filtes_l->iir_coef[j].coef_b[0], \
+        dac_filtes_l->iir_coef[j].coef_b[1], \
+        dac_filtes_l->iir_coef[j].coef_b[2]);
+    }
+    for (int j = 0; j < dac_filtes_r->iir_counter; j++) {
+        LOG_I( "iir coef dac eq r 0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x",\
+        dac_filtes_r->iir_coef[j].coef_a[0], \
+        dac_filtes_r->iir_coef[j].coef_a[1], \
+        dac_filtes_r->iir_coef[j].coef_a[2], \
+        dac_filtes_r->iir_coef[j].coef_b[0], \
+        dac_filtes_r->iir_coef[j].coef_b[1], \
+        dac_filtes_r->iir_coef[j].coef_b[2]);
+    }
+#endif
+
+    if (g_dac_eq_limiter_cfg.limiter_param_ch0.enable || g_dac_eq_limiter_cfg.limiter_param_ch1.enable)
+    {
+        hw_dac_limiter_set_cfg(&g_dac_eq_limiter_cfg);
+    }
+
+    if (dac_eq_output_ch_map & AUD_CHANNEL_MAP_CH0)
+    {
+        iir_eq_filter_para_copy(&dac_filtes_l_old, dac_filtes_l, dac_eq_counter_l);
+        max_deq_gain_l = (1 << GAIN_Q);
+    }
+
+    if (dac_eq_output_ch_map & AUD_CHANNEL_MAP_CH1)
+    {
+        iir_eq_filter_para_copy(&dac_filtes_r_old, dac_filtes_r, dac_eq_counter_r);
+        max_deq_gain_r = (1 << GAIN_Q);
+    }
+
+    if (iir_coef_using == 0)
+    {
+        trace_counter = 0;
+
+        deq_iir_d_control->codec_deq_iir_iirb_enable = 0;
+
+        if (dac_eq_output_ch_map & AUD_CHANNEL_MAP_CH0)
+        {
+            deq_iir_d_control->codec_deq_iir_ch0_bypass = dac_filtes_l_old.iir_bypass_flag;
+            deq_iir_d_control->codec_deq_iir_count_ch0 = dac_filtes_l_old.iir_counter;
+            iir_eq_filter_coef_copy(deq_dac_iir_coefs1_l, &dac_filtes_l_old);
+        }
+
+        if (dac_eq_output_ch_map & AUD_CHANNEL_MAP_CH1)
+        {
+            deq_iir_d_control->codec_deq_iir_ch1_bypass = dac_filtes_r_old.iir_bypass_flag;
+            deq_iir_d_control->codec_deq_iir_count_ch1 = dac_filtes_r_old.iir_counter;
+            iir_eq_filter_coef_copy(deq_dac_iir_coefs1_r, &dac_filtes_r_old);
+        }
+
+        if (g_dac_eq_limiter_cfg.limiter_param_ch0.enable || g_dac_eq_limiter_cfg.limiter_param_ch1.enable)
+        {
+            hw_dac_limiter_att_rls_coef_copy(iir_coef_using);
+        }
+
+        deq_iir_d_control->codec_deq_iir_iirb_enable = 1;
+
+        if (dac_eq_output_ch_map & AUD_CHANNEL_MAP_CH0)
+        {
+            deq_iir_gaina_ch0 = 0;
+            deq_iir_gainb_ch0 = (int32)(((float)max_deq_gain_l / 512.0f) * FIXED_GAIN_RAMP_Q);
+        }
+
+        if (dac_eq_output_ch_map & AUD_CHANNEL_MAP_CH1)
+        {
+            deq_iir_gaina_ch1 = 0;
+            deq_iir_gainb_ch1 = (int32)(((float)max_deq_gain_r / 512.0f) * FIXED_GAIN_RAMP_Q);
+        }
+
+        deq_gainb_cfg_gain();
+        iir_coef_using = 1;
+    }
+    else
+    {
+        trace_counter = 0;
+
+        deq_iir_d_control->codec_deq_iir_iira_enable = 0;
+
+        if (dac_eq_output_ch_map & AUD_CHANNEL_MAP_CH0)
+        {
+            deq_iir_d_control->codec_deq_iir_ch0_bypass = dac_filtes_l_old.iir_bypass_flag;
+            deq_iir_d_control->codec_deq_iir_count_ch0 = dac_filtes_l_old.iir_counter;
+            iir_eq_filter_coef_copy(deq_dac_iir_coefs0_l, &dac_filtes_l_old);
+        }
+
+        if (dac_eq_output_ch_map & AUD_CHANNEL_MAP_CH1)
+        {
+            deq_iir_d_control->codec_deq_iir_ch1_bypass = dac_filtes_r_old.iir_bypass_flag;
+            deq_iir_d_control->codec_deq_iir_count_ch1 = dac_filtes_r_old.iir_counter;
+            iir_eq_filter_coef_copy(deq_dac_iir_coefs0_r, &dac_filtes_r_old);
+        }
+
+        if (g_dac_eq_limiter_cfg.limiter_param_ch0.enable || g_dac_eq_limiter_cfg.limiter_param_ch1.enable)
+        {
+            hw_dac_limiter_att_rls_coef_copy(iir_coef_using);
+        }
+
+        deq_iir_d_control->codec_deq_iir_iira_enable = 1;
+
+        if (dac_eq_output_ch_map & AUD_CHANNEL_MAP_CH0)
+        {
+            deq_iir_gainb_ch0 = 0;
+            deq_iir_gaina_ch0 = (int32)(((float)max_deq_gain_l / 512.0f) * FIXED_GAIN_RAMP_Q);
+        }
+
+        if (dac_eq_output_ch_map & AUD_CHANNEL_MAP_CH1)
+        {
+            deq_iir_gainb_ch1 = 0;
+            deq_iir_gaina_ch1 = (int32)(((float)max_deq_gain_r / 512.0f) * FIXED_GAIN_RAMP_Q);
+        }
+
+        deq_gaina_cfg_gain();
+        iir_coef_using = 0;
+    }
+
+    return err;
+}
+
+static void deq_switching_timer_handler(void *param)
+{
+    LOG_I( "%s", __func__);
+
+    uint32_t lock;
+    lock = int_lock();
+
+    bool deq_reserve_old_flag = deq_reserve_flag;
+
+    if (deq_reserve_flag)
+    {
+        deq_using_flag = 1;
+        deq_reserve_flag = 0;
+        dac_iir_cfg = dac_iir_cfg_new;
+    }
+    else
+    {
+        deq_using_flag = 0;
+    }
+    int_unlock(lock);
+
+    if (deq_reserve_old_flag)
+    {
+        hw_codec_iir_set_dac_cfg_internal(&dac_iir_cfg);
+        hwtimer_stop(deq_switching_timer);
+        hwtimer_start(deq_switching_timer, deq_switching_coef_delay);
+    }
+
+    return;
+}
+
+int hw_codec_iir_set_cfg(HW_CODEC_IIR_CFG_T *cfg, enum AUD_SAMPRATE_T sample_rate,
+                         HW_CODEC_IIR_TYPE_T hw_iir_type)
+{
+    HW_CODEC_IIR_ERROR err = HW_CODEC_IIR_NO_ERR;
+    uint32_t lock;
+
+    LOG_I( "%s", __func__);
+
+    if (cfg == NULL)
+    {
+        LOG_I( "%s: cfg is null", __func__);
+        return HW_CODEC_IIR_OTHER_ERR;
+    }
+
+    if (hw_iir_type != HW_CODEC_IIR_DAC)
+    {
+        LOG_I( "%s: can't support hw_iir_type=%d.", __func__, hw_iir_type);
+        return HW_CODEC_IIR_TYPE_ERR;
+    }
+
+    if (hw_iir_type == HW_CODEC_IIR_DAC && dac_open_flag == 0)
+    {
+        LOG_I( "%s: hw_iir_type=%d not opened", __func__, hw_iir_type);
+        return HW_CODEC_IIR_TYPE_ERR;
+    }
+
+    lock = int_lock();
+    bool deq_using_old_flag = deq_using_flag;
+
+    dac_iir_cfg_new = *cfg;
+
+    if (deq_using_flag == 0)
+    {
+        deq_using_flag = 1;
+        deq_reserve_flag = 0;
+        dac_iir_cfg = dac_iir_cfg_new;
+    }
+    else
+    {
+        deq_reserve_flag = 1;
+    }
+    int_unlock(lock);
+
+    if (deq_using_old_flag == 0)
+    {
+        hw_codec_iir_set_dac_cfg_internal(&dac_iir_cfg);
+        hwtimer_stop(deq_switching_timer);
+        hwtimer_start(deq_switching_timer, deq_switching_coef_delay);
+    }
+
+    return err;
+}
+
+static void hw_iir_ctrl_reg_init(void)
+{
+    // disable dac iir;
+    deq_iir_d_control->codec_deq_iir_enable = 0;
+    deq_iir_d_control->codec_deq_iir_iira_enable = 0;
+    deq_iir_d_control->codec_deq_iir_iirb_enable = 0;
+
+    *codec_deq_iir_gain_ext_th = DEQ_GAIN_RAMP_THRESHLD;
+
+    codec_dac_iir_config->codec_dac_L_eq_enable = 0;
+    codec_dac_iir_config->codec_dac_R_eq_enable = 0;
+}
+
+static void hw_iir_ctrl_reg_open(HW_CODEC_IIR_TYPE_T hw_iir_type)
+{
+    LOG_I( "%s", __func__);
+
+    if (hw_iir_type == HW_CODEC_IIR_DAC)
+    {
+        deq_iir_d_control->codec_deq_iir_enable = 0;
+
+        deq_iir_d_control->codec_deq_iir_iira_enable = 0;
+        deq_iir_d_control->codec_deq_iir_iirb_enable = 0;
+
+        deq_iir_d_control->codec_deq_iir_coef_swap = 0;
+        deq_iir_d_control->codec_deq_iir_auto_stop = 0;
+
+        deq_dac_gain_iir_coefs0_l[0].a1 = -iir_coef_gain_ramp_deq.coef_a[1];
+        deq_dac_gain_iir_coefs0_l[0].a2 = -iir_coef_gain_ramp_deq.coef_a[2];
+        deq_dac_gain_iir_coefs0_l[0].b0 = iir_coef_gain_ramp_deq.coef_b[0];
+        deq_dac_gain_iir_coefs0_l[0].b1 = iir_coef_gain_ramp_deq.coef_b[1];
+        deq_dac_gain_iir_coefs0_l[0].b2 = iir_coef_gain_ramp_deq.coef_b[2];
+
+        deq_dac_gain_iir_coefs1_l[0].a1 = -iir_coef_gain_ramp_deq.coef_a[1];
+        deq_dac_gain_iir_coefs1_l[0].a2 = -iir_coef_gain_ramp_deq.coef_a[2];
+        deq_dac_gain_iir_coefs1_l[0].b0 = iir_coef_gain_ramp_deq.coef_b[0];
+        deq_dac_gain_iir_coefs1_l[0].b1 = iir_coef_gain_ramp_deq.coef_b[1];
+        deq_dac_gain_iir_coefs1_l[0].b2 = iir_coef_gain_ramp_deq.coef_b[2];
+
+        deq_dac_gain_iir_coefs0_r[0].a1 = -iir_coef_gain_ramp_deq.coef_a[1];
+        deq_dac_gain_iir_coefs0_r[0].a2 = -iir_coef_gain_ramp_deq.coef_a[2];
+        deq_dac_gain_iir_coefs0_r[0].b0 = iir_coef_gain_ramp_deq.coef_b[0];
+        deq_dac_gain_iir_coefs0_r[0].b1 = iir_coef_gain_ramp_deq.coef_b[1];
+        deq_dac_gain_iir_coefs0_r[0].b2 = iir_coef_gain_ramp_deq.coef_b[2];
+
+        deq_dac_gain_iir_coefs1_r[0].a1 = -iir_coef_gain_ramp_deq.coef_a[1];
+        deq_dac_gain_iir_coefs1_r[0].a2 = -iir_coef_gain_ramp_deq.coef_a[2];
+        deq_dac_gain_iir_coefs1_r[0].b0 = iir_coef_gain_ramp_deq.coef_b[0];
+        deq_dac_gain_iir_coefs1_r[0].b1 = iir_coef_gain_ramp_deq.coef_b[1];
+        deq_dac_gain_iir_coefs1_r[0].b2 = iir_coef_gain_ramp_deq.coef_b[2];
+
+        for (int i = 0; i < dac_eq_counter_l; i++)
+        {
+            deq_dac_iir_coefs0_l[i].a1 = 0;
+            deq_dac_iir_coefs0_l[i].a2 = 0;
+            deq_dac_iir_coefs0_l[i].b0 = 0;
+            deq_dac_iir_coefs0_l[i].b1 = 0;
+            deq_dac_iir_coefs0_l[i].b2 = 0;
+
+            deq_dac_iir_coefs1_l[i].a1 = 0;
+            deq_dac_iir_coefs1_l[i].a2 = 0;
+            deq_dac_iir_coefs1_l[i].b0 = 0;
+            deq_dac_iir_coefs1_l[i].b1 = 0;
+            deq_dac_iir_coefs1_l[i].b2 = 0;
+        }
+        for (int i = 0; i < dac_eq_counter_r; i++)
+        {
+            deq_dac_iir_coefs0_r[i].a1 = 0;
+            deq_dac_iir_coefs0_r[i].a2 = 0;
+            deq_dac_iir_coefs0_r[i].b0 = 0;
+            deq_dac_iir_coefs0_r[i].b1 = 0;
+            deq_dac_iir_coefs0_r[i].b2 = 0;
+
+            deq_dac_iir_coefs1_r[i].a1 = 0;
+            deq_dac_iir_coefs1_r[i].a2 = 0;
+            deq_dac_iir_coefs1_r[i].b0 = 0;
+            deq_dac_iir_coefs1_r[i].b1 = 0;
+            deq_dac_iir_coefs1_r[i].b2 = 0;
+        }
+
+        if (g_dac_eq_limiter_cfg.limiter_param_ch0.enable || g_dac_eq_limiter_cfg.limiter_param_ch1.enable)
+        {
+            hw_dac_limiter_open(dac_eq_output_ch_map);
+        }
+
+        deq_iir_d_control->codec_deq_iir_ch0_bypass = 1;
+        deq_iir_d_control->codec_deq_iir_ch1_bypass = 1;
+
+        deq_iir_d_control->codec_deq_iir_count_ch0 = dac_eq_counter_l;
+        deq_iir_d_control->codec_deq_iir_count_ch1 = dac_eq_counter_r;
+
+        codec_dac_iir_config->codec_dac_L_eq_enable = 1;
+        codec_dac_iir_config->codec_dac_R_eq_enable = 1;
+
+        anc_iir_gain_update->codec_deq_iir_gain_ext_sel_ch0 = 0;
+        anc_iir_gain_update->codec_deq_iir_gain_ext_sel_ch1 = 0;
+
+        deq_iir_d_control->codec_deq_iir_gaincal_ext_ch0_bypass = 0;
+        deq_iir_d_control->codec_deq_iir_gaincal_ext_ch1_bypass = 0;
+
+        deq_iir_d_control->codec_deq_iir_gainuse_ext_ch0_bypass = 0;
+        deq_iir_d_control->codec_deq_iir_gainuse_ext_ch1_bypass = 0;
+
+        deq_iir_d_control->codec_deq_iir_auto_stop = 1;
+        deq_iir_d_control->codec_deq_iir_iira_enable = 1;
+        deq_iir_d_control->codec_deq_iir_iirb_enable = 1;
+        deq_iir_d_control->codec_deq_iir_enable = 1;
+
+        iir_coef_using = 0;
+        deq_iir_gaina_ch0 = DEQ_GAIN_RAMP_ZERO;
+        deq_iir_gainb_ch0 = DEQ_GAIN_RAMP_ZERO;
+        max_deq_gain_l = 0;
+
+        deq_iir_gaina_ch1 = DEQ_GAIN_RAMP_ZERO;
+        deq_iir_gainb_ch1 = DEQ_GAIN_RAMP_ZERO;
+        max_deq_gain_r = 0;
+
+        deq_using_flag = 0;
+        deq_reserve_flag = 0;
+        deq_switching_coef_delay = DEQ_SET_GAIN_TIME;
+
+        deq_gaina_cfg_gain();
+    }
+}
+
+static void hw_iir_ctrl_reg_close(HW_CODEC_IIR_TYPE_T hw_iir_type)
+{
+    if (hw_iir_type == HW_CODEC_IIR_DAC)
+    {
+        // disable dac iir;
+        deq_iir_d_control->codec_deq_iir_iira_enable = 0;
+        deq_iir_d_control->codec_deq_iir_iirb_enable = 0;
+        deq_iir_d_control->codec_deq_iir_enable = 0;
+        codec_dac_iir_config->codec_dac_L_eq_enable = 0;
+        codec_dac_iir_config->codec_dac_R_eq_enable = 0;
+    }
+}
+
+int hw_codec_iir_open(enum AUD_SAMPRATE_T sample_rate, HW_CODEC_IIR_TYPE_T hw_iir_type,
+                      int32_t ch_map)
+{
+    HW_CODEC_IIR_ERROR err = HW_CODEC_IIR_NO_ERR;
+
+    LOG_I( "%s:sample_rate:%d", __func__, sample_rate);
+
+    if (ch_map & AUD_CHANNEL_MAP_CH0)
+    {
+        dac_eq_output_ch_map |= AUD_CHANNEL_MAP_CH0;
+    }
+    else
+    {
+        dac_eq_output_ch_map &= ~AUD_CHANNEL_MAP_CH0;
+        dac_eq_counter_l = 0;
+    }
+
+    if (ch_map & AUD_CHANNEL_MAP_CH1)
+    {
+        dac_eq_output_ch_map |= AUD_CHANNEL_MAP_CH1;
+    }
+    else
+    {
+        dac_eq_output_ch_map &= ~AUD_CHANNEL_MAP_CH1;
+        dac_eq_counter_r = 0;
+    }
+
+    if (dac_eq_output_ch_map == AUD_CHANNEL_MAP_CH0)
+    {
+        dac_eq_counter_l = IIR_DAC_COUNTER_MAX;
+    }
+
+    LOG_I( "%s:dac_eq_counter_l:%d, dac_eq_counter_r:%d", __func__, dac_eq_counter_l,
+          dac_eq_counter_r);
+
+    if (dac_open_flag == 0)
+    {
+        if (sample_rate <= AUD_SAMPRATE_50781)
+        {
+            if (dac_eq_counter_l + dac_eq_counter_r > 34)
+            {
+                hal_codec_iir_eq_enable(24000000);
+            }
+            else
+            {
+                hal_codec_iir_eq_enable(24000000 / 2);
+            }
+        }
+        else if (sample_rate <= AUD_SAMPRATE_101562)
+        {
+            if (dac_eq_counter_l + dac_eq_counter_r > 34)
+            {
+                hal_codec_iir_eq_enable(24000000 * 2);
+            }
+            else
+            {
+                hal_codec_iir_eq_enable(24000000);
+            }
+        }
+        else if (sample_rate <= AUD_SAMPRATE_203125)
+        {
+            if (dac_eq_counter_l + dac_eq_counter_r > 34)
+            {
+                hal_codec_iir_eq_enable(24000000 * 4);
+            }
+            else
+            {
+                hal_codec_iir_eq_enable(24000000 * 2);
+            }
+        }
+        else
+        {
+            if (dac_eq_counter_l + dac_eq_counter_r > 34)
+            {
+                hal_codec_iir_eq_enable(24000000 * 8);
+            }
+            else
+            {
+                hal_codec_iir_eq_enable(24000000 * 4);
+            }
+        }
+
+        hw_iir_ctrl_reg_init();
+
+        iir_coef_using = 0;
+        sample_rate_dac = AUD_SAMPRATE_NULL;
+    }
+
+    if (deq_switching_timer == NULL)
+    {
+        deq_switching_timer = hwtimer_alloc(deq_switching_timer_handler, NULL);
+        ASSERT(deq_switching_timer, "Failed to alloc deq_switching_timer");
+    }
+
+    if (hw_iir_type == HW_CODEC_IIR_DAC)
+    {
+        dac_iir_reset_flag = 0;
+        dac_open_flag = 1;
+        sample_rate_dac = sample_rate;
+
+        // clear l iir_counter;
+        dac_filtes_l_old.iir_counter = 0;
+        dac_filtes_l_old.iir_bypass_flag = 1;
+
+        // clear r iir_counter;
+        dac_filtes_r_old.iir_counter = 0;
+        dac_filtes_r_old.iir_bypass_flag = 1;
+    }
+
+    hw_iir_ctrl_reg_open(hw_iir_type);
+
+    return err;
+}
+
+int hw_codec_iir_close(HW_CODEC_IIR_TYPE_T hw_iir_type)
+{
+    HW_CODEC_IIR_ERROR err = HW_CODEC_IIR_NO_ERR;
+
+    LOG_I( "%s,%d", __func__, hw_iir_type);
+
+    if (hw_iir_type == HW_CODEC_IIR_DAC)
+    {
+        dac_open_flag = 0;
+        sample_rate_dac = AUD_SAMPRATE_NULL;
+    }
+
+    if (g_dac_eq_limiter_cfg.limiter_param_ch0.enable || g_dac_eq_limiter_cfg.limiter_param_ch1.enable)
+    {
+        hw_dac_limiter_close();
+    }
+
+    hw_iir_ctrl_reg_close(hw_iir_type);
+
+    if (dac_open_flag == 0)
+    {
+        hwtimer_stop(deq_switching_timer);
+        hal_codec_iir_eq_disable();
+    }
+
+    return err;
+}
+
+int hw_codec_iir_set_coefs(HW_CODEC_IIR_CFG_F *cfg, HW_CODEC_IIR_TYPE_T hw_iir_type)
+{
+    HW_CODEC_IIR_ERROR err = HW_CODEC_IIR_NO_ERR;
+
+    HW_CODEC_IIR_CFG_T *hw_iir_cfg = hw_codec_iir_convert_cfg(cfg);
+
+    err = hw_codec_iir_set_cfg(hw_iir_cfg, AUD_SAMPRATE_NULL, hw_iir_type);
+
+    return err;
+}
+
+void hw_codec_iir_enable(HW_CODEC_IIR_TYPE_T hw_iir_type, int flag)
+{
+    if (hw_iir_type == HW_CODEC_IIR_DAC)
+    {
+        // disable dac iir;
+        codec_dac_iir_config->codec_dac_L_eq_enable = flag;
+        codec_dac_iir_config->codec_dac_R_eq_enable = flag;
+    }
+}
+
+int hw_codec_iir_set_limiter_cfg(const hw_dac_limiter_cfg_t* cfg)
+{
+    LOG_I( "enable = %d, delay_ms=%d, thd=%d, att_ms=%d, rls_ms=%d", cfg->limiter_param_ch0.enable,
+                                                                        (int32_t)(cfg->limiter_param_ch0.delay_ms),
+                                                                        (int32_t)(cfg->limiter_param_ch0.thd),
+                                                                        (int32_t)(cfg->limiter_param_ch0.att_ms),
+                                                                        (int32_t)(cfg->limiter_param_ch0.rls_ms));
+
+    g_dac_eq_limiter_cfg = *cfg;
+
+    return 0;
+}
